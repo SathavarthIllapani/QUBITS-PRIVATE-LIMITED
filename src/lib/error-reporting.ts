@@ -1,0 +1,7 @@
+/**
+ * Standard runtime error logging for client-side boundaries.
+ */
+export function reportRuntimeError(error: unknown, context: Record<string, unknown> = {}) {
+  if (typeof window === "undefined") return;
+  console.error("[Runtime Error]", error, context);
+}
