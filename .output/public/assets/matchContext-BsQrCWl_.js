@@ -1,1 +1,0 @@
-import{i as e,o as t}from"./useRouter-Dpb7RwMI.js";function n(e){return e?.isNotFound===!0}var r=`__root__`,i=t(e(),1),a=i.createContext(void 0),o=i.createContext(void 0);export{n as i,a as n,r,o as t};
