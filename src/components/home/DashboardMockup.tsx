@@ -59,6 +59,10 @@ export function DashboardMockup() {
         </span>
       </div>
 
+      <p className="border-b border-border/70 bg-amber-50 px-4 py-1 text-center text-[10px] font-medium text-amber-800">
+        Illustrative sample data — not real lab results
+      </p>
+
       <div className="flex">
         {/* Sidebar */}
         <div className="hidden flex-col items-center gap-1 border-r border-border/70 bg-secondary/40 px-2 py-3 sm:flex">
