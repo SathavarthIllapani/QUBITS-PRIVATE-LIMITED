@@ -43,6 +43,18 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/formulas"
+            className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            Formulas
+          </Link>
+          <Link
+            to="/demo"
+            className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            Try demo
+          </Link>
         </nav>
         <Button asChild size="sm" className="shrink-0 gap-2">
           <Link to="/tools" search={{ workflow: "assay-potency" }}>

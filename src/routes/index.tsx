@@ -144,6 +144,23 @@ function Index() {
               Calculator access requires a personal account. Uploads and saved runs stay private to
               the signed-in user.
             </p>
+            <p className="mt-3 text-sm text-hero-muted">
+              Just looking?{" "}
+              <Link
+                to="/demo"
+                className="font-medium text-hero-foreground underline underline-offset-4"
+              >
+                Try the demo calculator
+              </Link>{" "}
+              or{" "}
+              <Link
+                to="/formulas"
+                className="font-medium text-hero-foreground underline underline-offset-4"
+              >
+                read the formulas
+              </Link>
+              .
+            </p>
           </div>
           <div className="min-w-0 md:justify-self-end">
             <DashboardMockup />
