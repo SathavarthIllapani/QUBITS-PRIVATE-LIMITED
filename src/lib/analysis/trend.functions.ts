@@ -9,6 +9,7 @@ import { jsonSchema } from "@ai-sdk/provider-utils";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { TREND_RATE_LIMITS, exceededRateLimit } from "@/lib/rate-limit.server";
 import { createResponsesProvider, getAiApiKey, toUserSafeAiError } from "@/lib/ai/gateway.server";
 import { CALCULATORS, type Verdict } from "@/lib/calculators/registry";
 import { heuristicTrendReview } from "./heuristic.server";
@@ -195,6 +196,15 @@ export const generateTrendReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => generateInput.parse(input))
   .handler(async ({ data, context }): Promise<TrendReviewResult> => {
+    const limited = await exceededRateLimit(async (since) => {
+      const { count, error: countError } = await context.supabase
+        .from("trend_reviews")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", since);
+      return countError ? null : count;
+    }, TREND_RATE_LIMITS);
+    if (limited) return { ok: false, error: limited };
+
     const { data: rows, error } = await context.supabase
       .from("analyses")
       .select("*")

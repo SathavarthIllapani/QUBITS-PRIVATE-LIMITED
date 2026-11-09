@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { supabase } from "@/integrations/supabase/client";
 import { company } from "@/lib/company";
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, validatePassword } from "@/lib/password";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -40,6 +41,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [failures, setFailures] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
 
   // Already signed in: the calculator is the only destination.
   useEffect(() => {
@@ -55,14 +58,26 @@ function AuthPage() {
       return "Please confirm your email first — check your inbox for the confirmation link.";
     if (/user already registered/i.test(message))
       return "An account with this email already exists — try signing in instead.";
-    if (/password should be at least/i.test(message))
-      return "Choose a password with at least 6 characters.";
+    if (/password should|weak|pwned|known to be/i.test(message))
+      return `Choose a stronger password. ${PASSWORD_HINT}`;
     if (/rate limit/i.test(message)) return "Too many attempts — please wait a moment and try again.";
     return "That didn't work. Please check your details and try again.";
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (mode === "signin" && Date.now() < lockedUntil) {
+      const seconds = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setNotice(`Too many failed attempts — please wait ${seconds} seconds and try again.`);
+      return;
+    }
+    if (mode === "signup") {
+      const problem = validatePassword(password, email);
+      if (problem) {
+        setNotice(problem);
+        return;
+      }
+    }
     setBusy(true);
     setNotice(null);
     try {
@@ -93,6 +108,15 @@ function AuthPage() {
         );
       }
     } catch (error) {
+      if (mode === "signin") {
+        const next = failures + 1;
+        if (next >= 5) {
+          setLockedUntil(Date.now() + 30_000);
+          setFailures(0);
+        } else {
+          setFailures(next);
+        }
+      }
       setNotice(friendlyError(error));
     } finally {
       setBusy(false);
@@ -140,11 +164,14 @@ function AuthPage() {
                   type="password"
                   autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   required
-                  minLength={6}
+                  minLength={mode === "signup" ? MIN_PASSWORD_LENGTH : undefined}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••"
                 />
+                {mode === "signup" ? (
+                  <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
+                ) : null}
               </div>
             ) : null}
             <Button type="submit" className="w-full" disabled={busy}>

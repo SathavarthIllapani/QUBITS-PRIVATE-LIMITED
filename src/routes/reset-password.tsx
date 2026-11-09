@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, validatePassword } from "@/lib/password";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -51,13 +52,18 @@ function ResetPasswordPage() {
       setError("The two passwords don't match.");
       return;
     }
+    const problem = validatePassword(password);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setBusy(true);
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) {
         setError(
-          /at least/i.test(updateError.message)
-            ? "Choose a password with at least 6 characters."
+          /at least|weak|pwned|known to be/i.test(updateError.message)
+            ? `Choose a stronger password. ${PASSWORD_HINT}`
             : "The password could not be changed. Request a fresh reset link and try again.",
         );
         return;
@@ -100,10 +106,11 @@ function ResetPasswordPage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="confirm-password">Confirm new password</Label>
@@ -112,7 +119,7 @@ function ResetPasswordPage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={MIN_PASSWORD_LENGTH}
                   value={confirm}
                   onChange={(event) => setConfirm(event.target.value)}
                 />

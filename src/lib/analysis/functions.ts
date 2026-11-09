@@ -13,6 +13,7 @@ import { createResponsesProvider, getAiApiKey, toUserSafeAiError } from "@/lib/a
 import { CALCULATORS } from "@/lib/calculators/registry";
 import { extractDocument } from "@/lib/analysis/parse.server";
 import { heuristicExtract } from "@/lib/analysis/heuristic.server";
+import { ANALYZE_RATE_LIMITS, exceededRateLimit } from "@/lib/rate-limit.server";
 import type {
   AnalysisDTO,
   AnalysisListResult,
@@ -167,6 +168,15 @@ export const analyzeUpload = createServerFn({ method: "POST" })
     if (!userId || !data.path.startsWith(`${userId}/`)) {
       return { ok: false, error: "You can only analyse files you uploaded yourself." };
     }
+
+    const limited = await exceededRateLimit(async (since) => {
+      const { count, error } = await context.supabase
+        .from("analyses")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", since);
+      return error ? null : count;
+    }, ANALYZE_RATE_LIMITS);
+    if (limited) return { ok: false, error: limited };
 
     const { data: blob, error: downloadError } = await context.supabase.storage
       .from(BUCKET)
