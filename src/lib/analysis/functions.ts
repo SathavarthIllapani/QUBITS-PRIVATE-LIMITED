@@ -23,6 +23,7 @@ import type {
 
 const BUCKET = "analysis-documents";
 const DEFAULT_MODEL = "gpt-4o-mini";
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 const analyzeInput = z.object({
   path: z.string().min(1),
@@ -174,6 +175,10 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       return { ok: false, error: "Could not read the uploaded file. Please try uploading it again." };
     }
 
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      return { ok: false, error: "That file is larger than 25 MB — please upload a smaller file." };
+    }
+
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const doc = await extractDocument(data.fileName, blob.type || data.mimeType || "", bytes);
     if (doc.parts.length === 0) {
@@ -299,6 +304,9 @@ export const saveReviewedAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => saveInput.parse(input))
   .handler(async ({ data, context }): Promise<SaveResult> => {
+    if (!CALCULATORS.some((calc) => calc.id === data.calculatorId)) {
+      return { ok: false, error: "Unknown calculator — this run could not be saved." };
+    }
     const { error } = await context.supabase
       .from("analyses")
       .update({
