@@ -5,6 +5,8 @@ import logoAsset from "@/assets/qubits-logo.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { company } from "@/lib/company";
 
+const contactEmail = import.meta.env.VITE_CONTACT_EMAIL as string | undefined;
+
 const NAV_LINKS = [
   { hash: "capabilities", label: "Capabilities" },
   { hash: "workflow", label: "Workflow" },
@@ -81,6 +83,19 @@ export function SiteFooter() {
           ))}
           <p className="mt-3">Incorporated {company.incorporationDate}</p>
           <p>Registered with {company.roc}</p>
+          <p className="mt-3 flex gap-3 md:justify-end">
+            <Link to="/privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+            <Link to="/terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
+            {contactEmail ? (
+              <a href={`mailto:${contactEmail}`} className="hover:text-foreground hover:underline">
+                Contact
+              </a>
+            ) : null}
+          </p>
           <p className="mt-3">&copy; {new Date().getFullYear()} {company.name}</p>
         </div>
       </div>
