@@ -6,7 +6,17 @@
  * Realtime sync keeps history updated across all open analyst tabs.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, FileText, Loader2, Radio, Sparkles, Trash2, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  FileDown,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Radio,
+  Sparkles,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -40,6 +50,7 @@ import {
   saveReviewedAnalysis,
 } from "@/lib/analysis/functions";
 import { CALCULATORS, type CalculatorDef } from "@/lib/calculators/registry";
+import { canExport, exportRunToExcel, printRunAsPdf } from "@/lib/analysis/export";
 
 interface ReviewSelection {
   analysisId: string;
@@ -70,6 +81,29 @@ function confidenceLabel(confidence: number): string {
 
 export function UploadAnalyzer() {
   const { user } = useAuthSession();
+  const analyst = {
+    name: String(user?.user_metadata?.display_name ?? ""),
+    email: user?.email ?? "",
+  };
+
+  async function handleExcelExport(entry: AnalysisDTO) {
+    try {
+      const ok = await exportRunToExcel(entry, analyst);
+      if (ok) toast.success("Excel report downloaded.");
+      else toast.error("Only reviewed and saved runs can be exported.");
+    } catch (error) {
+      console.error("Excel export failed:", error);
+      toast.error("Could not create the Excel report.");
+    }
+  }
+
+  function handlePdfExport(entry: AnalysisDTO) {
+    if (!printRunAsPdf(entry, analyst)) {
+      toast.error("Could not open the PDF report.");
+      return;
+    }
+    toast.message("In the print dialog, choose “Save as PDF”.");
+  }
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -472,6 +506,30 @@ export function UploadAnalyzer() {
                           >
                             Review
                           </Button>
+                        )}
+                        {canExport(entry) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground"
+                              aria-label={`Download Excel report for ${entry.fileName}`}
+                              title="Download Excel report"
+                              onClick={() => void handleExcelExport(entry)}
+                            >
+                              <FileSpreadsheet className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground"
+                              aria-label={`Save PDF report for ${entry.fileName}`}
+                              title="Save PDF report"
+                              onClick={() => handlePdfExport(entry)}
+                            >
+                              <FileDown className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="ghost"
