@@ -42,6 +42,7 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const MAX_PDF_INLINE_BYTES = 8 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 30;
 const MAX_ZIP_ENTRY_BYTES = 8 * 1024 * 1024;
+const MAX_ZIP_TOTAL_BYTES = 40 * 1024 * 1024;
 
 const IMAGE_EXTS: Record<string, string> = {
   png: "image/png",
@@ -137,7 +138,7 @@ async function collect(
     return;
   }
   if (ext === "zip") {
-    collectZip(name, bytes, doc, depth);
+    await collectZip(name, bytes, doc, depth);
     return;
   }
   collectText(name, bytes, doc);
@@ -190,28 +191,43 @@ function collectExcel(name: string, bytes: Uint8Array, doc: ExtractedDoc): void 
   }
 }
 
-function collectZip(name: string, bytes: Uint8Array, doc: ExtractedDoc, depth: number): void {
+async function collectZip(
+  name: string,
+  bytes: Uint8Array,
+  doc: ExtractedDoc,
+  depth: number,
+): Promise<void> {
   try {
-    const entries = unzipSync(bytes);
+    // The filter runs BEFORE inflating, so oversized entries (zip bombs) are
+    // never decompressed into memory.
+    let inflatedTotal = 0;
+    const entries = unzipSync(bytes, {
+      filter: (file) => {
+        if (file.name.endsWith("/")) return false;
+        if (file.originalSize > MAX_ZIP_ENTRY_BYTES) return false;
+        if (inflatedTotal + file.originalSize > MAX_ZIP_TOTAL_BYTES) return false;
+        inflatedTotal += file.originalSize;
+        return true;
+      },
+    });
     let processed = 0;
     for (const [path, content] of Object.entries(entries)) {
       if (processed >= MAX_ZIP_ENTRIES) {
         doc.warnings.push(`${name}: more than ${MAX_ZIP_ENTRIES} files inside — only the first ${MAX_ZIP_ENTRIES} were read.`);
         break;
       }
-      if (path.endsWith("/") || path.includes("__MACOSX") || path.split("/").some((seg) => seg.startsWith("."))) continue;
-      if (content.length > MAX_ZIP_ENTRY_BYTES) continue;
+      if (path.includes("__MACOSX") || path.split("/").some((seg) => seg.startsWith("."))) continue;
       const base = path.split("/").pop() ?? path;
       const ext = extOf(base);
       const entryName = depth > 0 ? base : `${name} → ${base}`;
-      if (ext === "zip" && depth < 2) {
-        collectZip(entryName, content, doc, depth + 1);
+      if (ext === "zip") {
+        if (depth < 2) await collectZip(entryName, content, doc, depth + 1);
       } else {
-        void collect(ext, "", content, entryName, doc, depth + 1);
+        await collect(ext, "", content, entryName, doc, depth + 1);
       }
       processed += 1;
     }
-    if (processed === 0) doc.warnings.push(`${name}: the archive appears to be empty.`);
+    if (processed === 0) doc.warnings.push(`${name}: the archive appears to be empty or its files were too large.`);
   } catch (error) {
     doc.warnings.push(`${name}: could not be opened as a ZIP archive (${describeError(error)}).`);
   }
