@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://qubitsprivatelimited.vercel.app/sitemap.xml

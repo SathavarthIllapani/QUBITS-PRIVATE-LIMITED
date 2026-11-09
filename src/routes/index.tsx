@@ -35,8 +35,10 @@ export const Route = createFileRoute("/")({
           "Explore Qubits Lab Calculator workflows for pharmaceutical assay, potency, dilution, document review and trend checks.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://qubitsprivatelimited.vercel.app/" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://qubitsprivatelimited.vercel.app/" }],
   }),
   component: Index,
 });
